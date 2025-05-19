@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from dotenv import load_dotenv
 import pandas as pd
-import os, requests, time, json, tqdm
+import os, requests, time, json, tqdm, pickle
 
 load_dotenv()
 
@@ -10,7 +10,7 @@ SLEEP_TIME = 60 / MAX_REQUESTS_PER_MINUTE
 
 API_KEY = os.getenv("TORN_PUBLIC_API")
 
-def getTornData(id):
+def getTornData(id: str) -> dict:
     url = f"https://api.torn.com/user/{id}?selections=basic,personalstats&key={API_KEY}"
     response = requests.get(url)
     data = json.loads(response.text)
@@ -23,20 +23,31 @@ def getTornData(id):
     
     return return_data
 
-csv_data = pd.read_csv("./spyData.csv")
+def saveData():
+    csv_data = pd.read_csv("./spyData.csv")
 
-for idx, row in tqdm.tqdm(csv_data.iterrows(), total=csv_data.shape[0], desc="Getting data"):
-    user_id = row["Id"]
-    stats = getTornData(user_id)
-    if stats is None:
-        continue
-    for key, value in stats.items():
-        if key not in csv_data.columns:
-            csv_data[key] = ""
-        csv_data.at[idx, key] = value
-    time.sleep(SLEEP_TIME)
+    for idx, row in tqdm.tqdm(csv_data.iterrows(), total=csv_data.shape[0], desc="Getting data"):
+        user_id = row["Id"]
+        stats = getTornData(user_id)
+        if stats is None:
+            continue
+        for key, value in stats.items():
+            if key not in csv_data.columns:
+                csv_data[key] = ""
+            csv_data.at[idx, key] = value
+        time.sleep(SLEEP_TIME)
 
-csv_data.to_csv("./spyData.csv")
+    csv_data.to_csv("./spyData.csv")
+
+
+def test():
+    model = pickle.load(open("./best_model_spy_prediction_ElasticNet.pkl", "rb"))
+    data = getTornData("2669774")
+    input_data = pd.DataFrame([ data ])
+    prediction = model.predict(input_data)
+    print(prediction)
+
+test()
 
 
 
