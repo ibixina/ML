@@ -36,9 +36,47 @@ def saveAsCSV(stockData, filename):
 
 
 def main():
-    stockTicker = "lag"
-    getStockData(stockTicker)
-    saveAsCSV(stockData, f"{stockTicker}_h6.csv")
+    stockTickers = ["lag",
+                    "tcc",
+                    "evl",
+                    "sym",
+                    "prn",
+                    "fhg",
+                    "tmi",
+                    "wlt",
+                    "cnc",
+                    "tgp",
+                    "yaz",
+                    "tcp",
+                    "elt",
+                    "grn",
+                    "tci",
+                    "los",
+                    "msg",
+                    "ass",
+                    "wsu",
+                    "ths",
+                    "ist",
+                    "iou",
+                    "lsc",
+                    "iil",
+                    "hrg",
+                    "mun",
+                    "bag",
+                    "cbd",
+                    "pts",
+                    "tct",
+                    "tcm",
+                    "tsb",
+                    "sys",
+                    "mcs",
+                    "ewm",
+                    ]
+
+    for stockTicker in stockTickers:
+        print(f"Getting data for {stockTicker}")
+        getStockData(stockTicker)
+        saveAsCSV(stockData, f"{stockTicker}_h6.csv")
 
     
 if __name__ == "__main__":
