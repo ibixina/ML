@@ -47,7 +47,7 @@ for modelName in models:
     change = float(prediction[0]) - current_price
     changeperc = (change / current_price) * 100
     print(f"Current: {current_price}, Predicted: {prediction[0]}, Change: {changeperc:.2f}%")
-    if changeperc > 0.05:
+    if changeperc > 0.3:
         print(f"####  Buy {stockName} ####")
     # break
 
