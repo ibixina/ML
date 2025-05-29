@@ -27,10 +27,12 @@ def get_data(ticker, period = "h6"):
     return df
 
 
+period = "d1"
 for modelName in models:
+    if period not in modelName: continue
     stockName = modelName.split("_")[0]
     print(f"Predicting for {stockName} using model {modelName}")
-    df = get_data(stockName)
+    df = get_data(stockName, period)
 
     # generate 10 lags for the latest data
     for i in range(1, 10):
