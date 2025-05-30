@@ -1,9 +1,13 @@
 import pandas as pd
 import pickle
-import os, requests, json
+import os, requests, json, time, tqdm
 
 # load models
 models = {}
+
+RESET = '\033[0m'
+RED = "\033[91m"
+GREEN = "\033[92m"
 
 model_dir = "./models"
 for file in os.listdir(model_dir):
@@ -13,6 +17,19 @@ for file in os.listdir(model_dir):
             model_name = file.replace(".pkl", "")
             models[model_name] = pickle.load(f)
 
+def print_row(data, type = 0, spacing = 10, color = RESET):
+# type 0: row, type 1: header, type 2: footer
+    row ="|"
+    for d in data:
+        row += str(d).rjust(spacing) + " |"
+
+    if type == 1:
+        print("-" * len(row))
+
+    print(color + row + RESET)
+
+    if type == 1:
+        print("-" * len(row))
 
 
 def get_data(ticker, period = "h6"):
@@ -29,7 +46,9 @@ def get_data(ticker, period = "h6"):
 time_periods = {
     "d1": 24,
     "h6": 6,
+    "h4": 4,
     "h1": 1,
+    "h2": 2,
     "m30": 0.5,
 }
 
@@ -55,12 +74,10 @@ def predict_n_future(X, model, n = 1):
 
     return predictions
 
-
-
-for modelName in models:
+for modelName in tqdm.tqdm(models, desc="Prediction in progress: "):
     stockName = modelName.split("_")[0]
     stock_period = modelName.split("_")[1]
-    print(f"Predicting for {stockName} using model {modelName}")
+    # print(f"Predicting for {stockName} using model {modelName}")
     df = get_data(stockName, period=stock_period)
 
     # generate 10 lags for the latest data
@@ -77,7 +94,7 @@ for modelName in models:
     
     # predict
     predictions = predict_n_future(X.copy(), models[modelName], n=no_of_iterations)
-    print(predictions)
+    # print(predictions)
     # get the last prediction
     prediction = predictions[-1]
 
@@ -92,15 +109,27 @@ for modelName in models:
 
     stock_predictions[stockName] += [changeperc]
 
-    print(f"Current: {current_price}, Predicted: {prediction}, Change: {changeperc:.2f}%")
-    if changeperc > 0.3:
-        print(f"####  Buy {stockName} ####")
+    # print(f"Current: {current_price}, Predicted: {prediction}, Change: {changeperc:.2f}%")
+    # if changeperc > 0.3:
+    #     print(f"####  Buy {stockName} {stock_period} ####")
+
+    time.sleep(0.5)  # To avoid hitting the API too fast
 
 print(stock_predictions)
+
+headers = ["Stock", "Change %"]
+print_row(headers, type=1)
 
 # get the average from different prediction
 for stockName in stock_predictions:
     avg = sum(stock_predictions[stockName]) / len(stock_predictions[stockName])
-    print(f"{stockName} average prediction: {avg}%")
+    if avg > 0.3:
+        color = GREEN  
+    elif avg < -0.3:
+        color = RED
+    else:
+        color = RESET
+    
+    print_row([stockName, f"{avg:.2f}"], color=color)
 
 
