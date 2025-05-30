@@ -1,0 +1,718 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+        .controls input[type="text"], .controls select, .controls button {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+        .controls input[type="text"] {
+            flex-grow: 1;
+        }
+        .controls button {
+            background-color: #4A90E2;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .controls button:hover {
+            background-color: #357ABD;
+        }
+        .controls button.secondary {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .controls button.secondary:hover {
+            background-color: #e0e0e0;
+        }
+        .controls button.danger {
+            background-color: #D0021B;
+        }
+        .controls button.danger:hover {
+            background-color: #A00113;
+        }
+        #chartContainer {
+            position: relative;
+            height: 500px; /* Default height, can be overridden by JS */
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden; /* Ensures canvas corners are rounded if bg is set */
+            background-color: #f9f9f9; /* Light background for the chart area */
+            padding: 10px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        #stockList {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .stock-item {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left-width: 5px;
+            border-left-style: solid;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .stock-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        .stock-info strong {
+            font-size: 1.1rem;
+        }
+        .color-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .stock-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .control-group label {
+            min-width: 50px;
+            font-size: 0.85rem;
+        }
+        .slider {
+            flex-grow: 1;
+            accent-color: #4A90E2; /* Modern way to style slider thumb and track */
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            border-radius: 8px; /* Match chart container */
+        }
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4A90E2;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message-container {
+            min-height: 30px; /* Reserve space to prevent layout shift */
+            margin-bottom: 10px;
+        }
+        .error {
+            background-color: #FFBABA;
+            color: #D8000C;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-700">Stock Data Visualizer</h1>
+
+        <div class="controls">
+            <input type="text" id="stockCode" placeholder="Enter Stock Code (e.g., AAPL)" class="rounded-md shadow-sm">
+            <select id="interval" class="rounded-md shadow-sm">
+                <option value="m1">1 Minute</option>
+                <option value="m5">5 Minutes</option>
+                <option value="m15">15 Minutes</option>
+                <option value="m30">30 Minutes</option>
+                <option value="h1">1 Hour</option>
+                <option value="h6">6 Hour</option>
+                <option value="h12">12 Hour</option>
+                <option value="d1" selected>1 Day</option>
+                <option value="w1">1 Week</option>
+                <option value="n1">1 Month</option>
+                <option value="y1">1 Year</option>
+                <option value="all">All</option>
+            </select>
+            <button id="addStock" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md">Add Stock</button>
+            <button id="demoMode" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-md secondary">Demo Data</button>
+            <button id="clearAll" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md shadow-md danger">Clear All</button>
+        </div>
+
+        <div id="errorMessage" class="error-message-container"></div>
+
+        <div id="chartContainer">
+            <canvas id="stockChart"></canvas>
+            <div id="loading" class="loading-overlay">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="stockListContainer" class="container">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-600">Stock Controls</h2>
+        <div id="stockList">
+            </div>
+    </div>
+
+    <script>
+        class StockVisualizer {
+            constructor() {
+                this.stocks = []; // Holds the raw stock data and settings
+                this.chart = null; // Chart.js instance
+                this.colors = [
+                    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+                    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+                ];
+                this.initChart();
+                this.bindEvents();
+            }
+
+            initChart() {
+                const ctx = document.getElementById('stockChart').getContext('2d');
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: [] // Datasets will be added/removed dynamically
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'linear', // Using linear scale for time index
+                                position: 'bottom',
+                                title: {
+                                    display: true,
+                                    text: 'Time Index / Offset Point',
+                                    font: { size: 14 }
+                                },
+                                grid: {
+                                    color: 'rgba(0,0,0,0.05)'
+                                }
+                            },
+                            y: {
+                                min: 0,
+                                max: 1, // Normalized value range
+                                title: {
+                                    display: true,
+                                    text: 'Normalized Value (0-1)',
+                                    font: { size: 14 }
+                                },
+                                ticks: {
+                                    stepSize: 0.1
+                                },
+                                grid: {
+                                    color: 'rgba(0,0,0,0.05)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { font: { size: 12 } }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            // Attempt to find original value if stored, otherwise show normalized
+                                            const stockId = context.dataset.id;
+                                            // Ensure visualizer instance is accessible, might need to pass it or access globally
+                                            const visualizerInstance = typeof visualizer !== 'undefined' ? visualizer : window.visualizer;
+                                            if (visualizerInstance) {
+                                                const visualizerStock = visualizerInstance.stocks.find(s => s.id === stockId);
+                                                if (visualizerStock && visualizerStock.originalData) {
+                                                    // Simplified tooltip, direct mapping back to original value is complex
+                                                    label += context.parsed.y.toFixed(3) + ' (normalized)';
+                                                } else {
+                                                    label += context.parsed.y.toFixed(3);
+                                                }
+                                            } else {
+                                                 label += context.parsed.y.toFixed(3);
+                                            }
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        },
+                        animation: {
+                            duration: 500, // General animation duration
+                            easing: 'easeInOutQuart'
+                        },
+                        // Performance improvement for live updates
+                        datasets: {
+                            line: {
+                                animation: {
+                                    duration: 0 // Disable animation for dataset changes if causing issues with sliders
+                                }
+                            }
+                        }
+                    }
+                });
+                // Set chart container height (can be dynamic based on viewport if needed)
+                document.getElementById('chartContainer').style.height = 'clamp(300px, 60vh, 500px)';
+            }
+
+            bindEvents() {
+                document.getElementById('addStock').addEventListener('click', () => this.addStock());
+                document.getElementById('demoMode').addEventListener('click', () => this.addDemoData());
+                document.getElementById('clearAll').addEventListener('click', () => this.clearAll());
+                document.getElementById('stockCode').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.addStock();
+                });
+            }
+
+            // Helper to prepare points for a dataset (smoothing, offset, scale)
+            _prepareDatasetPoints(stock) {
+                let dataToProcess = stock.normalizedData;
+                if (stock.smoothing > 1) {
+                    dataToProcess = this.applySmoothing(stock.normalizedData, stock.smoothing);
+                }
+                return dataToProcess.map((value, index) => ({
+                    x: index + stock.offset, // Apply offset to x-coordinate
+                    y: Math.max(0, Math.min(1, value * stock.scale)) // Apply scale and clamp
+                }));
+            }
+
+            // Helper to create a full Chart.js dataset object for a stock
+            _createChartDataset(stock) {
+                const points = this._prepareDatasetPoints(stock);
+                return {
+                    id: stock.id, // Store stock ID for easy reference
+                    label: `${stock.code} (${stock.interval})`,
+                    data: points,
+                    borderColor: stock.color,
+                    backgroundColor: stock.color + '33', // More subtle fill
+                    borderWidth: 2,
+                    fill: false, // Can be true if you want area charts
+                    tension: 0.2, // Smoother lines
+                    pointRadius: 0, // No points by default
+                    pointHoverRadius: 5, // Show point on hover
+                    pointHitRadius: 10 // Larger hit area for tooltips
+                };
+            }
+
+            async addStock() {
+                const code = document.getElementById('stockCode').value.trim().toUpperCase();
+                const interval = document.getElementById('interval').value;
+
+                if (!code) {
+                    this.showError('Please enter a stock code');
+                    return;
+                }
+                if (this.stocks.find(s => s.code === code && s.interval === interval)) {
+                    this.showError(`Stock ${code} with interval ${interval} already added.`);
+                    return;
+                }
+
+                this.showLoading(true);
+                this.clearError();
+
+                try {
+                    const data = await this.fetchStockData(code, interval);
+                    if (!data || data.length === 0) {
+                         throw new Error('No data points received or data is empty.');
+                    }
+                    const normalizedData = this.normalizeData(data);
+                    
+                    const stock = {
+                        id: Date.now(), // Unique ID for the stock instance
+                        code,
+                        interval,
+                        originalData: data,
+                        normalizedData,
+                        color: this.colors[this.stocks.length % this.colors.length],
+                        offset: 0,    // Initial offset
+                        scale: 1,     // Initial scale
+                        smoothing: 1  // Initial smoothing (1 = no smoothing)
+                    };
+
+                    this.stocks.push(stock);
+                    
+                    // Create and add the new dataset to the chart
+                    const newDataset = this._createChartDataset(stock);
+                    this.chart.data.datasets.push(newDataset);
+                    this.chart.update(); // Update the chart efficiently
+
+                    this.updateStockList(); // Update the UI list of stocks
+                    document.getElementById('stockCode').value = '';
+                } catch (error) {
+                    console.error("Error in addStock:", error);
+                    this.showError(`Failed to add ${code}: ${error.message}`);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+            
+            async fetchStockData(code, interval) {
+                this.showError(''); 
+                const apiUrl = `https://tornsy.com/api/${code}?interval=${interval}`;
+                
+                try {
+                    console.log(`Fetching from: ${apiUrl}`);
+                    const response = await fetch(apiUrl, {
+                        method: 'GET',
+                        mode: 'cors', 
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (!response.ok) {
+                        let errorBody = '';
+                        try {
+                            const errorJson = await response.json(); // Try to parse as JSON first
+                            if (errorJson && errorJson.error) {
+                                errorBody = errorJson.error;
+                            } else {
+                                errorBody = await response.text(); // Fallback to text
+                            }
+                        } catch (e) {
+                            errorBody = response.statusText; // Fallback if parsing error body fails
+                        }
+                        throw new Error(`HTTP ${response.status}: ${errorBody}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    let dataPoints;
+                    if (result && result.data && Array.isArray(result.data)) {
+                        dataPoints = result.data;
+                    } else if (Array.isArray(result)) { // Fallback if API returns a direct array
+                        dataPoints = result;
+                    } else {
+                        throw new Error('Invalid data format received from API.');
+                    }
+
+                    if (dataPoints.length === 0) {
+                        throw new Error('No data points in the response.');
+                    }
+
+                    return dataPoints.map((item, index) => {
+                        if (Array.isArray(item) && item.length > 4) {
+                            const closePrice = parseFloat(item[4]);
+                            return isNaN(closePrice) ? 0 : closePrice; 
+                        } else if (typeof item === 'object' && item !== null) {
+                            const close = parseFloat(item.close || item.price || item.value || 0);
+                            return isNaN(close) ? 0 : close;
+                        } else if (typeof item === 'number') {
+                            return item; 
+                        }
+                        console.warn(`Unexpected data item format at index ${index}:`, item);
+                        return 0; 
+                    }).filter(price => typeof price === 'number');
+                
+                } catch (error) {
+                    console.error(`Failed to fetch stock data for ${code} from ${apiUrl}:`, error);
+                    let userMessage = `API Error for ${code}: ${error.message}.`;
+                    if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                         userMessage = `CORS or network error with API. Displaying demo data for ${code}.`;
+                    } else if (error.message.includes("Interval not supported")) {
+                        userMessage = `API Error for ${code}: Interval not supported. Please choose a different interval. Displaying demo data.`;
+                    }
+                    this.showError(userMessage);
+                    return this.generateRandomData(100);
+                }
+            }
+
+
+            normalizeData(data) {
+                if (!data || data.length === 0) return [];
+                const min = Math.min(...data);
+                const max = Math.max(...data);
+                const range = max - min;
+                
+                if (range === 0) return data.map(() => 0.5);
+                
+                return data.map(value => (value - min) / range);
+            }
+
+            applySmoothing(data, windowSize) {
+                if (windowSize <= 1 || !data || data.length === 0) return data;
+                const smoothed = [];
+                const halfWindow = Math.floor(windowSize / 2);
+                for (let i = 0; i < data.length; i++) {
+                    const start = Math.max(0, i - halfWindow);
+                    const end = Math.min(data.length, i + halfWindow + 1);
+                    const subset = data.slice(start, end);
+                    const avg = subset.reduce((sum, val) => sum + val, 0) / subset.length;
+                    smoothed.push(avg);
+                }
+                return smoothed;
+            }
+            
+            updateStockList() {
+                const container = document.getElementById('stockList');
+                container.innerHTML = ''; 
+
+                this.stocks.forEach(stock => {
+                    const item = document.createElement('div');
+                    item.className = 'stock-item p-4 rounded-lg shadow-md';
+                    item.style.borderColor = stock.color;
+                    item.style.borderLeftWidth = '4px';
+
+
+                    item.innerHTML = `
+                        <div class="stock-info flex items-center gap-3 mb-3">
+                            <div class="color-indicator w-4 h-4 rounded-full" style="background-color: ${stock.color};"></div>
+                            <strong class="text-lg">${stock.code}</strong>
+                            <span class="text-sm text-gray-600">(${stock.interval})</span>
+                            <span class="text-sm text-gray-500 ml-auto">${stock.originalData.length} points</span>
+                        </div>
+                        <div class="stock-controls space-y-2">
+                            <div class="control-group flex items-center">
+                                <label class="w-16 text-sm text-gray-700">Offset:</label>
+                                <input type="range" class="slider flex-grow" min="-100" max="100" value="${stock.offset}" 
+                                       oninput="visualizer.updateStock(${stock.id}, 'offset', this.value)">
+                                <span class="w-10 text-right text-sm">${stock.offset}</span>
+                            </div>
+                            <div class="control-group flex items-center">
+                                <label class="w-16 text-sm text-gray-700">Scale:</label>
+                                <input type="range" class="slider flex-grow" min="0.1" max="3" step="0.05" value="${stock.scale}"
+                                       oninput="visualizer.updateStock(${stock.id}, 'scale', this.value)">
+                                <span class="w-10 text-right text-sm">${parseFloat(stock.scale).toFixed(2)}</span>
+                            </div>
+                            <div class="control-group flex items-center">
+                                <label class="w-16 text-sm text-gray-700">Smooth:</label>
+                                <input type="range" class="slider flex-grow" min="1" max="50" step="1" value="${stock.smoothing}"
+                                       oninput="visualizer.updateStock(${stock.id}, 'smoothing', this.value)">
+                                <span class="w-10 text-right text-sm">${stock.smoothing}</span>
+                            </div>
+                            <button onclick="visualizer.removeStock(${stock.id})" 
+                                    class="w-full mt-2 bg-red-500 hover:bg-red-600 text-white text-sm py-1.5 px-3 rounded-md transition-colors duration-150">
+                                Remove
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            updateStock(id, property, value) {
+                const stock = this.stocks.find(s => s.id === id);
+                if (stock) {
+                    stock[property] = parseFloat(value);
+
+                    const datasetIndex = this.chart.data.datasets.findIndex(ds => ds.id === id);
+                    if (datasetIndex !== -1) {
+                        const newPoints = this._prepareDatasetPoints(stock);
+                        this.chart.data.datasets[datasetIndex].data = newPoints;
+                        this.chart.update('none'); 
+                    }
+                    // DO NOT call this.updateStockList() here to prevent slider dragging issue.
+                    // The external event listener handles updating the slider value display.
+                }
+            }
+
+            removeStock(id) {
+                const stockIndex = this.stocks.findIndex(s => s.id === id);
+                if (stockIndex !== -1) {
+                    this.stocks.splice(stockIndex, 1);
+
+                    const datasetIndex = this.chart.data.datasets.findIndex(ds => ds.id === id);
+                    if (datasetIndex !== -1) {
+                        this.chart.data.datasets.splice(datasetIndex, 1); 
+                        this.chart.update(); 
+                    }
+                    this.updateStockList(); 
+                }
+            }
+            
+            fullChartRefresh() {
+                this.chart.data.datasets = this.stocks.map(stock => this._createChartDataset(stock));
+                this.chart.update();
+            }
+
+            clearAll() {
+                this.stocks = [];
+                this.chart.data.datasets = []; 
+                this.chart.update(); 
+                this.updateStockList(); 
+                this.clearError();
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                if (show) {
+                    loading.classList.add('show');
+                } else {
+                    loading.classList.remove('show');
+                }
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('errorMessage');
+                if (message) {
+                    errorDiv.innerHTML = `<div class="error">${message}</div>`;
+                    if (!message.toLowerCase().includes("demo data")) {
+                       setTimeout(() => {
+                           if (errorDiv.innerHTML.includes(message)) this.clearError();
+                       }, 7000);
+                    }
+                } else {
+                    this.clearError();
+                }
+            }
+
+            clearError() {
+                document.getElementById('errorMessage').innerHTML = '';
+            }
+
+            generateRandomData(count = 100) {
+                const data = [];
+                let value = 50;
+                for (let i = 0; i < count; i++) {
+                    value += (Math.random() - 0.5) * 10;
+                    data.push(Math.max(0, value)); 
+                }
+                return data;
+            }
+
+            addDemoData() {
+                this.clearError(); 
+                const demoStocks = [
+                    { code: 'DEMO1', interval: 'd1', points: 200 }, // Using API compatible interval
+                    { code: 'DEMO2', interval: 'w1', points: 50 }  // Using API compatible interval
+                ];
+                
+                let addedCount = 0;
+                // Note: forEach with async inside doesn't make forEach await.
+                // For demo data, this is usually fine as operations are mostly synchronous after data generation.
+                demoStocks.forEach((demo, index) => { 
+                    if (this.stocks.find(s => s.code === demo.code && s.interval === demo.interval)) {
+                        console.log(`Demo stock ${demo.code} already exists.`);
+                        return;
+                    }
+                    
+                    this.showLoading(true); // Show loading for each demo stock addition attempt
+                    const randomData = this.generateRandomData(demo.points);
+                    const normalizedData = this.normalizeData(randomData);
+
+                    const stock = {
+                        id: Date.now() + index, 
+                        code: demo.code,
+                        interval: demo.interval,
+                        originalData: randomData,
+                        normalizedData,
+                        color: this.colors[(this.stocks.length + addedCount) % this.colors.length],
+                        offset: 0,
+                        scale: 1,
+                        smoothing: Math.random() > 0.5 ? Math.floor(Math.random() * 5) + 1 : 1,
+                    };
+                    this.stocks.push(stock);
+                    addedCount++;
+
+                    const newDataset = this._createChartDataset(stock);
+                    this.chart.data.datasets.push(newDataset);
+                });
+
+                if (addedCount > 0) {
+                    this.chart.update();
+                    this.updateStockList();
+                }
+                this.showLoading(false); // Hide loading after all attempts
+                if (addedCount === 0 && demoStocks.length > 0) {
+                    this.showError('Demo stocks are already loaded.');
+                } else if (addedCount > 0) {
+                     this.showError('Demo data loaded. API calls are mocked for these.');
+                }
+            }
+        }
+
+        // Initialize the visualizer
+        const visualizer = new StockVisualizer();
+        // Make visualizer instance globally accessible for tooltip callback if needed
+        window.visualizer = visualizer; 
+        
+        // Make sliders update value display dynamically
+        document.getElementById('stockList').addEventListener('input', function(event) {
+            if (event.target.type === 'range' && event.target.classList.contains('slider')) {
+                const valueSpan = event.target.nextElementSibling;
+                if (valueSpan) {
+                    // Check if step or min indicates a float value for formatting
+                    const step = event.target.getAttribute('step');
+                    const min = event.target.getAttribute('min');
+                    if ((step && step.includes('.')) || (min && min.includes('.'))) {
+                         valueSpan.textContent = parseFloat(event.target.value).toFixed(2);
+                    } else {
+                         valueSpan.textContent = event.target.value;
+                    }
+                }
+                // The oninput in the HTML directly calls visualizer.updateStock,
+                // which will update the chart. No need to call it again here.
+            }
+        });
+
+    </script>
+</body>
+</html>
+
