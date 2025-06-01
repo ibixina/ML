@@ -118,7 +118,11 @@ for modelName in tqdm.tqdm(models, desc="Prediction in progress: "):
 print(stock_predictions)
 
 headers = ["Stock", "Change %"]
+
+
 print_row(headers, type=1)
+
+stock_predictions_final = []
 
 # get the average from different prediction
 for stockName in stock_predictions:
@@ -129,7 +133,11 @@ for stockName in stock_predictions:
         color = RED
     else:
         color = RESET
-    
-    print_row([stockName, f"{avg:.2f}"], color=color)
 
+    stock_predictions_final += [(stockName, round(avg, 2), color)]
+
+sorted_stock_predictions = reversed(sorted(stock_predictions_final, key = lambda x: x[1]))
+
+for stockName, avg, color in sorted_stock_predictions:
+    print_row((stockName, avg), color = color)
 
