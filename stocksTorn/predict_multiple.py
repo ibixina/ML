@@ -9,15 +9,16 @@ RESET = '\033[0m'
 RED = "\033[91m"
 GREEN = "\033[92m"
 
-model_dir = "./models/day_2"
-for file in os.listdir(model_dir):
-    if file.endswith(".pkl"):
-        model_path = os.path.join(model_dir, file)
-        with open(model_path, 'rb') as f:
-            model_name = file.replace(".pkl", "")
-            models[model_name] = pickle.load(f)
+model_dirs = ["./models/day_2", "./models/day_3"]
+for model_dir in model_dirs:
+    for file in os.listdir(model_dir):
+        if file.endswith(".pkl"):
+            model_path = os.path.join(model_dir, file)
+            with open(model_path, 'rb') as f:
+                model_name = file.replace(".pkl", "")
+                models[model_name] = pickle.load(f)
 
-def print_row(data, type = 0, spacing = 10, color = RESET):
+def print_row(data, type = 0, spacing = 30, color = RESET):
 # type 0: row, type 1: header, type 2: footer
     row ="|"
     for d in data:
@@ -111,7 +112,7 @@ for modelName in tqdm.tqdm(models, desc="Prediction in progress: "):
     change = float(prediction) - current_price
     changeperc = (change / current_price) * 100
 
-    stock_predictions[stockName] += [changeperc]
+    stock_predictions[stockName] += [round(changeperc, 2)]
 
     # print(f"Current: {current_price}, Predicted: {prediction}, Change: {changeperc:.2f}%")
     # if changeperc > 0.3:
@@ -121,7 +122,7 @@ for modelName in tqdm.tqdm(models, desc="Prediction in progress: "):
 
 print(stock_predictions)
 
-headers = ["Stock", "Change %"]
+headers = ["Stock", "Change %", "Predictions"]
 
 
 print_row(headers, type=1)
@@ -143,5 +144,5 @@ for stockName in stock_predictions:
 sorted_stock_predictions = reversed(sorted(stock_predictions_final, key = lambda x: x[1]))
 
 for stockName, avg, color in sorted_stock_predictions:
-    print_row((stockName, avg), color = color)
+    print_row((stockName, avg, stock_predictions[stockName]), color = color)
 
