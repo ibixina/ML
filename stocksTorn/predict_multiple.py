@@ -9,7 +9,7 @@ RESET = '\033[0m'
 RED = "\033[91m"
 GREEN = "\033[92m"
 
-model_dir = "./models"
+model_dir = "./models/day_2"
 for file in os.listdir(model_dir):
     if file.endswith(".pkl"):
         model_path = os.path.join(model_dir, file)

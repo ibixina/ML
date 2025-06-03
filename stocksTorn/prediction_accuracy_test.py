@@ -5,7 +5,7 @@ import os, requests, json, time, tqdm
 # load models
 models = {}
 
-model_dir = "./models"
+model_dir = "./models/day_2"
 for file in os.listdir(model_dir):
     if file.endswith(".pkl"):
         model_path = os.path.join(model_dir, file)
@@ -65,8 +65,9 @@ def test_accuracy(time):
 
     accuracies = {}
 
-    prediction_window = 2 * 24
     hours_per_step = time_periods[time]
+
+    prediction_window = 3
 
     for stock in stockNames:
         df = get_data(stock, time)
@@ -95,7 +96,7 @@ def test_accuracy(time):
             for pred in active_preds:
                 if not pred["active"]:
                     continue
-                pred["remaining_time"] -= hours_per_step
+                pred["remaining_time"] -= 1
                 price_met = current_price >= pred["target_price"]
                 time_expired = pred["remaining_time"] <= 0
 
