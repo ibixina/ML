@@ -77,6 +77,10 @@ def predict_n_future(X, model, n = 1):
 for modelName in tqdm.tqdm(models, desc="Prediction in progress: "):
     stockName = modelName.split("_")[0]
     stock_period = modelName.split("_")[1]
+
+    # based on the accuracy test, only use d1
+    if stock_period != "d1": continue
+
     # print(f"Predicting for {stockName} using model {modelName}")
     df = get_data(stockName, period=stock_period)
 
@@ -127,7 +131,7 @@ stock_predictions_final = []
 # get the average from different prediction
 for stockName in stock_predictions:
     avg = sum(stock_predictions[stockName]) / len(stock_predictions[stockName])
-    if avg > 0.3:
+    if avg >= 0.3:
         color = GREEN  
     elif avg < -0.3:
         color = RED

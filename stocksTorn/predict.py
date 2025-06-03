@@ -69,7 +69,7 @@ for modelName in models:
     changeperc = (change / current_price) * 100
 
     color = RESET
-    if changeperc > 0.01:
+    if changeperc >= 0.03:
         color = GREEN
     elif changeperc < -0.03:
         color = RED

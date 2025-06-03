@@ -90,16 +90,6 @@ def test_accuracy(time):
         for i in range(len(df)):
             current_price = float(low_prices[i])
 
-            # Check if prediction at i indicates >0.5% increase
-            percent_change = (float(preds[i]) - current_price) / current_price
-            if percent_change > 0.005:
-                target_price = current_price * 1.005
-                active_preds.append({
-                    "remaining_time": prediction_window,
-                    "target_price": target_price,
-                    "active": True
-                })
-                total += 1
 
             new_active = []
             for pred in active_preds:
@@ -116,6 +106,18 @@ def test_accuracy(time):
                     pred["active"] = False
                 else:
                     new_active.append(pred)
+
+
+            # Check if prediction at i indicates >0.5% increase
+            percent_change = (float(preds[i]) - current_price) / current_price
+            if percent_change > 0.003:
+                target_price = current_price * 1.003
+                new_active.append({
+                    "remaining_time": prediction_window,
+                    "target_price": target_price,
+                    "active": True
+                })
+                total += 1
 
             active_preds = new_active
 
